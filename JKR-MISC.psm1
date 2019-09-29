@@ -616,3 +616,103 @@ function New-RemoteDomainProgram {
     } #END
 
 } #FUNCTION
+
+
+function Send-TTSMessage {
+    <#
+        .SYNOPSIS
+            Sends a test message to the specified PC, or the current PC if none is specified
+        .DESCRIPTION
+            Uses the Speech Synthesizer to send a TTS message to the current or remote PC that the current user has access to
+        .PARAMETER Message
+            The message you would like to send
+        .PARAMETER ComputerName
+            Optional - The PC that you would like to send the message to
+        .EXAMPLE
+            Send-TTSMessage -Message 'TEST' -ComputerName TESTPC01
+        .EXAMPLE
+            Send-TTSMessage -Message 'TEST'
+    #>
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]$Message,
+        [Parameter()]$ComputerName
+    ) 
+
+    BEGIN { 
+        if ($NULL -eq $ComputerName) {
+            $ComputerName = $ENV:COMPUTERNAME
+        }
+    } #BEGIN
+
+    PROCESS {
+        foreach ($Computer in $ComputerName) {
+            
+            If ($Computer -eq $ENV:COMPUTERNAME) {
+                Add-Type -AssemblyName System.speech
+                $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer
+                $speak.Speak($Message)
+            }
+            else {
+                Invoke-Command -ScriptBlock {
+                    param($Message)
+                    Add-Type -AssemblyName System.speech
+                    $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer
+                    $speak.Speak($Message)
+                } -ComputerName $Computer -ArgumentList $Message
+            }
+
+        }
+    
+    } #PROCESS
+
+    END { 
+
+    } #END
+
+} #FUNCTION
+
+
+function Get-ExchangeConnectionCounts {
+    <#
+        .SYNOPSIS
+            Gets Exchange Connection Counts
+        .DESCRIPTION
+            Gets Connection Counts for OWA, RPC, and EAS
+        .PARAMETER ComputerName
+            Exchange Server, or Servers to check
+        .EXAMPLE
+            Get-ExchangeConnectionCounts -Computername TESTPC1
+        .EXAMPLE
+            Get-ExchangeConnectionCounts -Computername TESTPC1, TESTPC2     
+    #>
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]$ComputerName
+    ) 
+    BEGIN { 
+        $ExchangeConnections = @()
+    } #BEGIN
+
+    PROCESS {
+        Foreach ($Computer in $Computername) {
+            $RPC = (Get-Counter "\MSExchange RpcClientAccess\User Count" -ComputerName $Computer).CounterSamples[0].Cookedvalue 
+            $OWA = (Get-Counter "\MSExchange OWA\Current Unique Users"   -ComputerName $Computer).CounterSamples[0].Cookedvalue
+            $EAS = [math]::Truncate((Get-Counter "\MSExchange ActiveSync\Requests/sec" -ComputerName $Computer).CounterSamples[0].Cookedvalue)
+
+
+            $Row = New-Object PSObject
+            $Row | Add-Member -MemberType noteproperty -Name "Computername" -Value $Computer
+            $Row | Add-Member -MemberType noteproperty -Name "RPC" -Value $RPC
+            $Row | Add-Member -MemberType noteproperty -Name "OWA" -Value $OWA
+            $Row | Add-Member -MemberType noteproperty -Name "EAS" -Value $EAS
+
+            $ExchangeConnections += $Row
+        }
+    } #PROCESS
+
+    END { 
+        $ExchangeConnections
+    } #END
+
+} #FUNCTION
