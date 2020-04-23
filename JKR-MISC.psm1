@@ -1,9 +1,3 @@
-
-
-<#
-DESCRIPTION:
-Gets list of commands available in a specified PowerShell Snapin
-#>
 function Get-PSSnapinCommand {
     <#
         .SYNOPSIS
@@ -35,7 +29,6 @@ function Get-PSSnapinCommand {
 } #FUNCTION
 
 
-
 function Invoke-RoyalTSDomainDocCreation {
     <#
         .SYNOPSIS
@@ -59,8 +52,7 @@ function Invoke-RoyalTSDomainDocCreation {
             $Domain = $Domain.ToUpper()
         }
         
-        Import-Module "${env:ProgramFiles(x86)}\Royal TS V5\RoyalDocument.PowerShell.dll"
-        
+        Import-Module  RoyalDocument.PowerShell
         $FileName = $Domain + '.rtsz'
         $RoyalTSItems = @()
 
@@ -136,7 +128,6 @@ function Invoke-RoyalTSDomainDocCreation {
 } #FUNCTION
 
 
-
 function New-HTMLHead {
     <#
         .SYNOPSIS
@@ -198,8 +189,6 @@ function New-HTMLHead {
 } #FUNCTION
 
 
-
-
 function New-HTMLTimestamp {
     <#
         .SYNOPSIS
@@ -233,7 +222,6 @@ function New-HTMLTimestamp {
 } #FUNCTION
 
 
-
 function New-UserHomeDirectory {
     <#
         .SYNOPSIS
@@ -263,6 +251,9 @@ function New-UserHomeDirectory {
         if ($NULL -eq $Domain) {
             $Domain = (Get-ADDomain).DNSRoot
         }
+
+        $Path = $Path.Trimend('\')
+        $Path = $Path + '\'
     } #BEGIN
 
     PROCESS {
@@ -284,7 +275,6 @@ function New-UserHomeDirectory {
     } #END
 
 } #FUNCTION
-
 
 
 function New-TestFiles {
@@ -496,7 +486,6 @@ function New-TestFiles {
     } #END
 
 } #FUNCTION
-
 
 
 function Get-IISLogDirectory {
@@ -713,6 +702,398 @@ function Get-ExchangeConnectionCounts {
 
     END { 
         $ExchangeConnections
+    } #END
+
+} #FUNCTION
+
+
+function Set-PrinterLPRPort {
+    <#
+        .SYNOPSIS
+            Sets LPR Port Number on specified Printer Port
+        .DESCRIPTION
+            Changed LPR Port from the Default used by Windows (515) to one you specify
+        .PARAMETER PortName
+            Specified Port Name to
+        .PARAMETER IPAddress
+            Specified IP Address for the Printer Port
+        .PARAMETER PortNumber
+            Specified Port Number to change the Port to
+        .EXAMPLE
+            Set-PrinterLPRPort -PortName TestPort -IPAddress 127.0.0.1 -PortNumber 99999
+    #>
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)][string]$PortName,
+        [Parameter(Mandatory = $true)][string]$IPAddress,
+        [Parameter(Mandatory = $true)][string]$PortNumber
+    ) 
+    BEGIN { 
+
+    } #BEGIN
+
+    PROCESS {
+        cscript.exe /s C:\windows\System32\Printing_Admin_Scripts\en-us\prnport.vbs -a -r $PortName -2e -md -h $IPAddress -q secure -o lpr -n $PortNumber
+    } #PROCESS
+
+    END { 
+
+    } #END
+
+} #FUNCTION
+
+
+function New-SCCMSession {
+    <#
+        .SYNOPSIS
+            Starts a PowerShell Session to SCCM and connects to the Site
+        .DESCRIPTION
+            Imports the PowerShell Module for SCCM, and then changes location to that Site Code
+        .EXAMPLE
+            New-SCCMSession
+    #>
+    [CmdletBinding()]
+    Param(
+        
+    ) 
+    BEGIN { 
+      
+        if (-Not (Test-Path -Path 'C:\Program Files (x86)\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager.psd1')) {
+            Write-Host 'SCCM Console is not Installed, or Module not found'
+        }
+        else {
+            Import-Module 'C:\Program Files (x86)\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager.psd1'
+
+            $SCCMSiteCode = (Get-PSDrive | Where-Object { $_.Provider.Name -eq 'CMSite' }).Name
+            $Location = $SCCMSiteCode + ':'
+        }
+
+
+    } #BEGIN
+
+    PROCESS {
+        if (Test-Path -Path 'C:\Program Files (x86)\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager.psd1') {
+            Set-Location $Location
+        }
+
+    } #PROCESS
+
+    END { 
+
+    } #END
+
+} #FUNCTION
+
+function Invoke-AsSystem {
+    <#
+        .SYNOPSIS
+            Runs a Program as NT Authority System
+        .DESCRIPTION
+            Uses a copy of PSExec to launch the specified Program as System
+        .PARAMETER PSExecPath
+            Path to psexec/psexec64
+        .PARAMETER Program
+            Program to run as System
+        .EXAMPLE
+            Invoke-AsSystem -PSExecPath "\\FILESERVER\PsExec64.exe" -Program powershell.exe
+    #>
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)][string]$PSExecPath,
+        [Parameter(Mandatory = $true)][string]$Program
+    ) 
+    BEGIN { 
+
+    } #BEGIN
+
+    PROCESS {
+        Start-Process -FilePath cmd.exe -Verb Runas -ArgumentList "/k $PSExecPath -i -s $Program"
+    } #PROCESS
+
+    END { 
+
+    } #END
+
+} #FUNCTION
+
+function Invoke-APCConfigBackup {
+    <#
+        .SYNOPSIS
+            Backs up APC config files with the corresponding APC Name
+        .DESCRIPTION
+            Downloads Config file from APC/APC's specified
+        .PARAMETER APCS
+            APC's to Backup the Config from
+        .PARAMETER Username
+            APC Username to login via FTP
+        .PARAMETER Password
+            APC Password to login via FTP
+        .PARAMETER BackupDir
+            Backup Directory where the Configs will be stored
+        .EXAMPLE
+            Invoke-APCConfig -APCS '<APC IP's/NAME's>' -Username 'APC Username' -Password 'APC Password' -BackupDir 'Directory to store INI Files'
+    #>
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]$APCS,
+        [Parameter(Mandatory = $true)]$Username,
+        [Parameter(Mandatory = $true)]$Password,
+        [Parameter(Mandatory = $true)]$BackupDir
+    ) 
+    BEGIN { 
+        $PWDir = Get-Location
+
+        Set-Location $BackupDir
+
+        $DownloadConfig = @"
+$Username
+$Password
+get config.ini
+bye
+"@
+    } #BEGIN
+
+    PROCESS {
+        $DownloadConfig | out-file FTPCommand.txt
+
+        foreach ($APC in $APCS) {
+            ftp -s:FTPCommand.txt $APC
+            Rename-Item config.ini "$APC.ini"
+            Move-Item "$APC.ini" -Destination $BackupDir
+        }
+
+        Remove-Item FTPCommand.txt
+
+        Set-Location $PWDir
+    } #PROCESS
+
+    END { 
+
+    } #END
+
+} #FUNCTION
+
+function Invoke-APCConfigtoPSObject {
+    <#
+        .SYNOPSIS
+            Converts APC Config file into PowerShell Readable Object
+        .DESCRIPTION
+            Parses Config Files from APC's
+        .PARAMETER APCConfigFiles
+            Config File or Files to convert to a PS Object
+        .EXAMPLE
+            Invoke-APCConfigtoPSObject -APCConfigFiles 'File1','File2'
+    #>
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]$APCConfigFiles
+    ) 
+    BEGIN { 
+        $APCResults = @()
+    } #BEGIN
+
+    PROCESS {
+        foreach ($APCConfigFile in $APCConfigFiles) {
+            $APCFile = Get-Content -Path $APCConfigFile
+            $APCAOSVersion = $APCFile | Select-String "Network Management Card AOS"
+            $APCAOSVersion = $APCAOSVersion -replace '; ' , ''
+            $APCAppVersion = $APCFile | Select-String "APP v"
+            $APCAppVersion = $APCAppVersion -replace '; ' , ''
+            $APCHostName = $APCFile | Select-String "HostName"
+            $APCHostName = $APCHostName -replace 'HostName=' , ''
+            $APCName = $APCFile | Select-String '^Name='
+            $APCName = $APCName -replace 'Name=' , ''
+            $APCSystemIP = $APCFile | Select-String 'SystemIP'
+            $APCSystemIP = $APCSystemIP -replace 'SystemIP=' , ''
+            $APCSubnetMask = $APCFile | Select-String 'SubnetMask'
+            $APCSubnetMask = $APCSubnetMask -replace 'SubnetMask=' , ''
+            $APCDefaultGateway = $APCFile | Select-String '^DefaultGateway'
+            $APCDefaultGateway = $APCDefaultGateway -replace 'DefaultGateway=' , ''
+            $APCDomainName = $APCFile | Select-String 'DomainName'
+            $APCDomainName = $APCDomainName -replace 'DomainName=' , ''
+            $APCPrimaryDNSServerIP = $APCFile | Select-String 'PrimaryDNSServerIP'
+            $APCPrimaryDNSServerIP = $APCPrimaryDNSServerIP -replace 'PrimaryDNSServerIP=' , ''
+            $APCSecondaryDNSServerIP = $APCFile | Select-String 'SecondaryDNSServerIP'
+            $APCSecondaryDNSServerIP = $APCSecondaryDNSServerIP -replace 'SecondaryDNSServerIP=' , ''
+            $APCEmailServerName = $APCFile | Select-String 'EmailServerName'
+            $APCEmailServerName = $APCEmailServerName -replace 'EmailServerName=' , ''
+            $APCEmailFromName = $APCFile | Select-String 'EmailFromName'
+            $APCEmailFromName = $APCEmailFromName -replace 'EmailFromName=' , ''
+            $APCEmailReceiver1Address = $APCFile | Select-String 'EmailReceiver1Address'
+            $APCEmailReceiver1Address = $APCEmailReceiver1Address -replace 'EmailReceiver1Address=' , ''
+            $APCContact = $APCFile | Select-String 'Contact='
+            $APCContact = $APCContact -replace 'Contact=' , ''
+            $APCLocation = $APCFile | Select-String '^Location'
+            $APCLocation = $APCLocation -replace 'Location=' , ''
+            $APCNTPEnable = $APCFile | Select-String 'NTPEnable'
+            $APCNTPEnable = $APCNTPEnable -replace 'NTPEnable=' , ''
+            $APCNTPPrimaryServer = $APCFile | Select-String 'NTPPrimaryServer'
+            $APCNTPPrimaryServer = $APCNTPPrimaryServer -replace 'NTPPrimaryServer=' , ''
+            $APCNTPSecondaryServer = $APCFile | Select-String 'NTPSecondaryServer'
+            $APCNTPSecondaryServer = $APCNTPSecondaryServer -replace 'NTPSecondaryServer=' , ''
+        
+            $Row = New-Object PSObject
+            $Row | Add-Member -type NoteProperty -Name 'AOS Version' -Value $APCAOSVersion
+            $Row | Add-Member -type NoteProperty -Name 'APP Version' -Value $APCAppVersion
+            $Row | Add-Member -type NoteProperty -Name 'Hostname' -Value $APCHostName
+            $Row | Add-Member -type NoteProperty -Name 'Name' -Value $APCName
+            $Row | Add-Member -type NoteProperty -Name 'System IP' -Value $APCSystemIP
+            $Row | Add-Member -type NoteProperty -Name 'Subnet Mask' -Value $APCSubnetMask
+            $Row | Add-Member -type NoteProperty -Name 'Default Gateway' -Value $APCDefaultGateway
+            $Row | Add-Member -type NoteProperty -Name 'Domain Name' -Value $APCDomainName
+            $Row | Add-Member -type NoteProperty -Name 'Primary DNS Server' -Value $APCPrimaryDNSServerIP
+            $Row | Add-Member -type NoteProperty -Name 'Secondary DNS Server' -Value $APCSecondaryDNSServerIP
+            $Row | Add-Member -type NoteProperty -Name 'E-mail Server' -Value $APCEmailServerName
+            $Row | Add-Member -type NoteProperty -Name 'E-mail From Address' -Value $APCEmailFromName
+            $Row | Add-Member -type NoteProperty -Name 'E-mail To Address 1' -Value $APCEmailReceiver1Address
+            $Row | Add-Member -type NoteProperty -Name 'Contact' -Value $APCContact
+            $Row | Add-Member -type NoteProperty -Name 'Location' -Value $APCLocation
+            $Row | Add-Member -type NoteProperty -Name 'NTP Enabled' -Value $APCNTPEnable
+            $Row | Add-Member -type NoteProperty -Name 'NTP Primary Server' -Value $APCNTPPrimaryServer
+            $Row | Add-Member -type NoteProperty -Name 'NTP Secondary Server' -Value $APCNTPSecondaryServer
+
+            $APCResults += $Row
+        }
+    } #PROCESS
+
+    END { 
+        $APCResults
+    } #END
+
+} #FUNCTION
+
+function Set-APCConfig {
+    <#
+        .SYNOPSIS
+            Applies a Config to an APC or group of APC's
+        .DESCRIPTION
+            Applies either a Config or CSF File to multiple or singular APC's
+        .PARAMETER APCS
+            APC's to apply to
+        .PARAMETER Username
+            APC Username to login via FTP
+        .PARAMETER Password
+            APC Password to login via FTP
+        .PARAMETER SettingsFile
+            INI/CSF File to Apply
+        .EXAMPLE
+            Set-APCConfig -APCS '<APC IP's/NAME's>' -Username 'APC Username' -Password 'APC Password' -SettingsFile 'Path to INI/CSF File'
+    #>
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]$APCS,
+        [Parameter(Mandatory = $true)]$Username,
+        [Parameter(Mandatory = $true)]$Password,
+        [Parameter(Mandatory = $true)]$SettingsFile
+    ) 
+    BEGIN { 
+        $PWDir = Get-Location
+
+        Set-Location c:\temp
+
+        $UploadConfig = @"
+$Username
+$Password
+put $SettingsFile
+bye
+"@
+
+    } #BEGIN
+
+    PROCESS {
+        $UploadConfig | out-file FTPCommand.txt
+
+        foreach ($APC in $APCS) {
+            ftp -s:FTPCommand.txt $APC
+        }
+
+        Remove-Item FTPCommand.txt
+
+        Set-Location $PWDir
+
+    } #PROCESS
+
+    END { 
+
+    } #END
+
+} #FUNCTION
+
+function New-CertReq {
+    <#
+        .SYNOPSIS
+            Gneerates a CSR using the specified information
+        .DESCRIPTION
+            Generates an INF/CSR with the Specified Certificate Information
+        .PARAMETER CertFQDN
+            FQDN of the Certificate needed
+        .PARAMETER CustomerInfo
+            Customer Information formatted as follows - "O = <COMPANYNAME>, STREET = <STREETADDRESS>, L = <CITY>, S = <STATE>, PostalCode = <ZIPCODE>, C = <COUNTRY>"
+        .PARAMETER WorkingDir
+            Directory to store the CSR/INF Files
+        .EXAMPLE
+            New-CertReq -CertFQDN Test.TestCompany.com -CustomerInfo "O = COMPANY, STREET = 123 Road, L = FakeTown, S = Texas, PostalCode = 12345, C = US" -WorkingDir 'c:\Temp'
+    #>
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]$CertFQDN,
+        [Parameter(Mandatory = $true)]$CustomerInfo,
+        [Parameter(Mandatory = $true)]$WorkingDir
+    ) 
+    BEGIN { 
+
+        $WorkingDir = $WorkingDir.Trimend('\')
+        $WorkingDir = $WorkingDir + '\'
+
+        $CSRPath = $WorkingDir + "$($CertFQDN)_.csr"
+        $INFPath = $WorkingDir + "$($CertFQDN)_.inf"
+
+        $Signature = '$Windows NT$' 
+
+
+        $INF =
+        @"
+[Version]
+Signature= "$Signature" 
+
+[NewRequest]
+Subject = "CN=$CertFQDN, $CustomerInfo"
+KeySpec = 1
+KeyLength = 4096
+Exportable = TRUE
+MachineKeySet = TRUE
+SMIME = False
+PrivateKeyArchive = FALSE
+UserProtected = FALSE
+UseExistingKeySet = FALSE
+ProviderName = "Microsoft RSA SChannel Cryptographic Provider"
+ProviderType = 12
+RequestType = PKCS10
+KeyUsage = 0xa0
+
+[Strings]
+szOID_SUBJECT_ALT_NAME2 = "2.5.29.17"
+szOID_ENHANCED_KEY_USAGE = "2.5.29.37"
+szOID_PKIX_KP_SERVER_AUTH = "1.3.6.1.5.5.7.3.1"
+szOID_PKIX_KP_CLIENT_AUTH = "1.3.6.1.5.5.7.3.2"
+
+[Extensions]
+%szOID_SUBJECT_ALT_NAME2% = "{text}dns=$CertFQDN"
+%szOID_ENHANCED_KEY_USAGE% = "{text}%szOID_PKIX_KP_SERVER_AUTH%,%szOID_PKIX_KP_CLIENT_AUTH%"
+
+[EnhancedKeyUsageExtension]
+
+OID=1.3.6.1.5.5.7.3.1 
+"@
+    } #BEGIN
+
+    PROCESS {
+        $INF | Out-File -filepath $INFPath -force
+        certreq -new $INFPath $CSRPath
+    } #PROCESS
+
+    END { 
+
     } #END
 
 } #FUNCTION
