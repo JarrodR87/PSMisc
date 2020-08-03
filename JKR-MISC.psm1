@@ -1097,3 +1097,196 @@ OID=1.3.6.1.5.5.7.3.1
     } #END
 
 } #FUNCTION
+
+
+function Get-RSATInstallStatus {
+    <#
+        .SYNOPSIS
+            Gets RSAT Installation Status for current PC
+        .DESCRIPTION
+            Checks Windows Capabilities and lists RSAT Install Status
+        .EXAMPLE
+            Get-RSATInstallStatus
+    #>
+    [CmdletBinding()]
+    Param(
+        
+    ) 
+    BEGIN { 
+
+    } #BEGIN
+
+    PROCESS {
+        $RSATStatus = Get-WindowsCapability -Name RSAT* -Online | Select-Object -Property DisplayName, State
+    } #PROCESS
+
+    END { 
+        $RSATStatus
+    } #END
+
+} #FUNCTION
+
+function Invoke-RSATInstallation {
+    <#
+        .SYNOPSIS
+            Installs all RSAT Tools on Current PC
+        .DESCRIPTION
+            Queries all RSAT Tools available and Installs them. Requires internet Access
+        .EXAMPLE
+            Invoke-RSATInstallation
+    #>
+    [CmdletBinding()]
+    Param(
+        
+    ) 
+    BEGIN { 
+
+    } #BEGIN
+
+    PROCESS {
+        Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online
+    } #PROCESS
+
+    END { 
+
+    } #END
+
+} #FUNCTION
+
+function Invoke-FedExURSAUpdate {
+    #Requires -Modules PSFTP
+    <#
+        .SYNOPSIS
+            Downloads FedEx Ursav Update and places it in specified location
+        .DESCRIPTION
+            Uses the PSFTP Module to download the Fedex Ursa Update
+        .PARAMETER P1
+            C
+        .EXAMPLE
+            Invoke-FedExURSAUpdate -UrsaLocalLocation C:\Temp
+    #>
+
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]$UrsaLocalLocation
+    ) 
+    BEGIN { 
+        Import-Module PSFTP
+        $FedExFTPCredential = [System.Management.Automation.PSCredential]::new("anonymous", [System.Security.SecureString]::new())
+    } #BEGIN
+
+    PROCESS {
+        Set-FTPConnection -Server ftp://ftp.fedex.com -Session FedExUrsa -UsePassive -Credentials $FedExFTPCredential
+        $Session = Get-FTPConnection -Session FedExUrsa 
+        $URSAVFile = Get-FTPChildItem -Session $Session -Path /pub/ursa/URSAV5/ | Where-Object -FilterScript { $_.name -like 'ursav' }
+        $URSAVFile | Get-FTPItem -Session $Session -LocalPath $UrsaLocalLocation
+    } #PROCESS
+
+    END { 
+
+    } #END
+
+} #FUNCTION
+
+function Invoke-WSUSServerSynchronization {
+    <#
+        .SYNOPSIS
+            Starts a WSUS Synchronization for Updates
+        .DESCRIPTION
+            Gets the WSUS Server and initiates a Synchronization against it
+        .PARAMETER WSUSServer
+            Server Name or FQDN Depending on how you have it configured
+        .PARAMETER WSUSServerPort
+            Optional - Only needed if Ports are not default
+        .PARAMETER SSL
+            True or False, Not needed, but will default to non SSL if not specified
+        .EXAMPLE
+            Invoke-WSUSServerSynchronization -WSUSServer WSUS01 -WSUSServerPort 8538 -SSL 'True'
+        .EXAMPLE
+            Invoke-WSUSServerSynchronization -WSUSServer WSUS01
+        .EXAMPLE
+            Invoke-WSUSServerSynchronization -WSUSServer WSUS01 -SSL 'True'
+    #>
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]$WSUSServer,
+        [Parameter()]$WSUSServerPort,
+        [Parameter()]$SSL
+    ) 
+    BEGIN { 
+        if ($SSL -eq 'True') {
+            if ($NULL -eq $WSUSServerPort) {
+                $WSUSServerPort = 8531
+            }
+            
+            $WSUSServer = (Get-WsusServer -Name $WSUSServer -UseSsl -PortNumber $WSUSServerPort)
+        }
+        else {
+            if ($NULL -eq $WSUSServerPort) {
+                $WSUSServerPort = 8530
+            }
+            $WSUSServer = (Get-WsusServer -Name $WSUSServer -PortNumber $WSUSServerPort)
+        }
+
+    } #BEGIN
+
+    PROCESS {
+        $WSUSServer.GetSubscription().StartSynchronization()
+    } #PROCESS
+
+    END { 
+
+    } #END
+
+} #FUNCTION
+
+function Get-WSUSServerSynchronization {
+    <#
+        .SYNOPSIS
+            Gets last Synchronization
+        .DESCRIPTION
+            Queries WSUS Server for last Synchronization
+        .PARAMETER WSUSServer
+            Server Name or FQDN Depending on how you have it configured
+        .PARAMETER WSUSServerPort
+            Optional - Only needed if Ports are not default
+        .PARAMETER SSL
+            True or False, Not needed, but will default to non SSL if not specified
+        .EXAMPLE
+            Get-WSUSServerSynchronization -WSUSServer WSUS01 -WSUSServerPort 8538 -SSL 'True'
+        .EXAMPLE
+            Get-WSUSServerSynchronization -WSUSServer WSUS01
+        .EXAMPLE
+            Get-WSUSServerSynchronization -WSUSServer WSUS01 -SSL 'True'
+    #>
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]$WSUSServer,
+        [Parameter()]$WSUSServerPort,
+        [Parameter()]$SSL
+    ) 
+    BEGIN { 
+        if ($SSL -eq 'True') {
+            if ($NULL -eq $WSUSServerPort) {
+                $WSUSServerPort = 8531
+            }
+            
+            $WSUSServer = (Get-WsusServer -Name $WSUSServer -UseSsl -PortNumber $WSUSServerPort)
+        }
+        else {
+            if ($NULL -eq $WSUSServerPort) {
+                $WSUSServerPort = 8530
+            }
+            $WSUSServer = (Get-WsusServer -Name $WSUSServer -PortNumber $WSUSServerPort)
+        }
+    } #BEGIN
+
+    PROCESS {
+        $WSUSServer.GetSubscription().GetLastSynchronizationInfo()
+    } #PROCESS
+
+    END { 
+
+    } #END
+
+} #FUNCTION
