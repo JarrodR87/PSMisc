@@ -37,12 +37,17 @@ function Invoke-RoyalTSDomainDocCreation {
             Queries a Domain for all Windows Servers, and uses their OU's to create a RoyalTS Document Structure for hthat Domain
         .PARAMETER Domain
             Domain to run the document creation against
+        .PARAMETER Path
+            Path to save the file to
         .EXAMPLE
-            Invoke-RoyalTSDomainDocCreation -Domain contoso.com
+            Invoke-RoyalTSDomainDocCreation
+        .EXAMPLE
+            Invoke-RoyalTSDomainDocCreation -Domain contoso.com -Path C:\Temp\
     #>
     [CmdletBinding()]
     Param(
-        [Parameter()]$Domain
+        [Parameter()]$Domain,
+        [Parameter()]$Path
     ) 
     BEGIN { 
         if ($NULL -eq $Domain) {
@@ -52,8 +57,11 @@ function Invoke-RoyalTSDomainDocCreation {
             $Domain = $Domain.ToUpper()
         }
         
+        $Path = $Path.Trimend('\')
+        $Path = $Path + '\'
+
         Import-Module  RoyalDocument.PowerShell
-        $FileName = $Domain + '.rtsz'
+        $FileName = $Path + $Domain + '.rtsz'
         $RoyalTSItems = @()
 
 
