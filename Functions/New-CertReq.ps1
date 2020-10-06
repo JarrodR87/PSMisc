@@ -10,16 +10,35 @@ function New-CertReq {
             Customer Information formatted as follows - "O = <COMPANYNAME>, STREET = <STREETADDRESS>, L = <CITY>, S = <STATE>, PostalCode = <ZIPCODE>, C = <COUNTRY>"
         .PARAMETER WorkingDir
             Directory to store the CSR/INF Files
+        .PARAMETER SAN
+            Subject Alternate Names to add to the Certificate (Optional)
         .EXAMPLE
             New-CertReq -CertFQDN Test.TestCompany.com -CustomerInfo "O = COMPANY, STREET = 123 Road, L = FakeTown, S = Texas, PostalCode = 12345, C = US" -WorkingDir 'c:\Temp'
+        .EXAMPLE
+            New-CertReq -CertFQDN Test.TestCompany.com -SAN 'test2.testcompany.com','testcompany.com' -CustomerInfo "O = COMPANY, STREET = 123 Road, L = FakeTown, S = Texas, PostalCode = 12345, C = US" -WorkingDir 'c:\Temp'
     #>
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true)]$CertFQDN,
         [Parameter(Mandatory = $true)]$CustomerInfo,
-        [Parameter(Mandatory = $true)]$WorkingDir
+        [Parameter(Mandatory = $true)]$WorkingDir,
+        [Parameter()]$SAN
     ) 
     BEGIN { 
+        if ($NULL -eq $SAN) {
+            $SANINFEntry = "dns=$CertFQDN"
+        }
+        
+        else {
+            $SANArray = @()
+
+            foreach ($SANEntry in $SAN) {
+                $SANArray += "&dns=$SANEntry"
+            }
+
+            $SANINFEntry = "dns=$CertFQDN" + (($SANArray -join ',') -replace ',', '')
+        }
+        
 
         $WorkingDir = $WorkingDir.Trimend('\')
         $WorkingDir = $WorkingDir + '\'
@@ -57,7 +76,7 @@ szOID_PKIX_KP_SERVER_AUTH = "1.3.6.1.5.5.7.3.1"
 szOID_PKIX_KP_CLIENT_AUTH = "1.3.6.1.5.5.7.3.2"
 
 [Extensions]
-%szOID_SUBJECT_ALT_NAME2% = "{text}dns=$CertFQDN"
+%szOID_SUBJECT_ALT_NAME2% = "{text}$SANINFEntry"
 %szOID_ENHANCED_KEY_USAGE% = "{text}%szOID_PKIX_KP_SERVER_AUTH%,%szOID_PKIX_KP_CLIENT_AUTH%"
 
 [EnhancedKeyUsageExtension]
