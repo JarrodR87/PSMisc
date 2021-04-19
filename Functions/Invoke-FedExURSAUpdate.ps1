@@ -1,5 +1,4 @@
 function Invoke-FedExURSAUpdate {
-    #Requires -Modules PSFTP
     <#
         .SYNOPSIS
             Downloads FedEx Ursav Update and places it in specified location
