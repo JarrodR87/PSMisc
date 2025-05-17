@@ -1,4 +1,4 @@
-﻿function Get-LocalBitLockerReoveryKeys {
+function Get-LocalBitLockerReoveryKeys {
     <#
         .SYNOPSIS
             Collects Local BitLocker Reovery Keys

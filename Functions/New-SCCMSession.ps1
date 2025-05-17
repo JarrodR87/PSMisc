@@ -13,11 +13,11 @@ function New-SCCMSession {
     ) 
     BEGIN { 
       
-        if (-Not (Test-Path -Path 'C:\Program Files (x86)\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager.psd1')) {
+        if (-Not (Test-Path -Path "C:\Program Files (x86)\ConfigMgr Console\bin\ConfigurationManager\ConfigurationManager.psd1")) {
             Write-Host 'SCCM Console is not Installed, or Module not found'
         }
         else {
-            Import-Module 'C:\Program Files (x86)\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager.psd1'
+            Import-Module "C:\Program Files (x86)\ConfigMgr Console\bin\ConfigurationManager\ConfigurationManager.psd1"
 
             $SCCMSiteCode = (Get-PSDrive | Where-Object { $_.Provider.Name -eq 'CMSite' }).Name
             $Location = $SCCMSiteCode + ':'
@@ -27,7 +27,7 @@ function New-SCCMSession {
     } #BEGIN
 
     PROCESS {
-        if (Test-Path -Path 'C:\Program Files (x86)\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager.psd1') {
+        if (Test-Path -Path "C:\Program Files (x86)\ConfigMgr Console\bin\ConfigurationManager\ConfigurationManager.psd1") {
             Set-Location $Location
         }
 
